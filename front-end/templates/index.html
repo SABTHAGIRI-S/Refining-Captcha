@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ML Refined reCaptcha</title>
+  <style>
+    /* Keystroke Analyzer Styles */
+    :root {
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary-color: #64748b;
+      --secondary-hover: #475569;
+      --background: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      flex-direction: column;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--surface);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    header {
+      padding: 2rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--text-light);
+      font-size: 1.1rem;
+    }
+    .content {
+      padding: 2rem;
+    }
+    .typing-area {
+      margin-bottom: 1.5rem;
+    }
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      resize: vertical;
+      transition: border-color 0.2s ease;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    .metrics {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--background);
+      border-radius: 0.5rem;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.5; }
+      50% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.5; }
+    }
+    .actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .button {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+    .button.primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    .button.primary:hover {
+      background-color: var(--primary-hover);
+    }
+    .button.secondary {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+    .button.secondary:hover {
+      background-color: var(--secondary-hover);
+    }
+    #result {
+      margin-top: 1rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    @media (max-width: 640px) {
+      .container {
+        border-radius: 0;
+      }
+      header {
+        padding: 1.5rem;
+      }
+      .content {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      .subtitle {
+        font-size: 1rem;
+      }
+      .actions {
+        flex-direction: column;
+      }
+      .button {
+        width: 100%;
+      }
+    }
+    /* Captcha Container (Hidden by Default) */
+    #captchaContainer {
+      display: none;
+    }
+    /* Captcha Styles */
+    .captcha-container {
+      background: rgba(255,255,255,0.97);
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      margin: 0 auto;
+    }
+    .captcha-container .scene {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      perspective: 600px;
+      margin: 20px 0;
+    }
+    .captcha-container .dice {
+      width: 30px;
+      height: 30px;
+      position: relative;
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+    .captcha-container .rotate-xy {
+      animation: rotateXY 2s infinite linear;
+    }
+    .captcha-container .rotate-x {
+      animation: rotateX 2s infinite linear;
+    }
+    @keyframes rotateXY {
+      0% { transform: rotateX(0deg) rotateY(0deg); }
+      100% { transform: rotateX(360deg) rotateY(360deg); }
+    }
+    @keyframes rotateX {
+      0% { transform: rotateX(0deg); }
+      100% { transform: rotateX(360deg); }
+    }
+    .captcha-container .face {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: #fff;
+      border: 1px solid #333;
+      border-radius: 3px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.3);
+    }
+    .captcha-container .front  { transform: translateZ(15px); }
+    .captcha-container .back   { transform: rotateY(180deg) translateZ(15px); }
+    .captcha-container .left   { transform: rotateY(-90deg) translateZ(15px); }
+    .captcha-container .right  { transform: rotateY(90deg) translateZ(15px); }
+    .captcha-container .top    { transform: rotateX(90deg) translateZ(15px); }
+    .captcha-container .bottom { transform: rotateX(-90deg) translateZ(15px); }
+    .captcha-container .dot {
+      width: 3px;
+      height: 3px;
+      background: #333;
+      border-radius: 50%;
+      position: absolute;
+    }
+    .captcha-container button {
+      background: #56ab2f;
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .captcha-container button:hover {
+      background: #3d7d32;
+    }
+  </style>
+</head>
+<body>
+  <!-- Keystroke Dynamics Analyzer Section -->
+  <div class="container" id="analyzerContainer">
+    <header>
+      <h1>ML Refined reCaptcha</h1>
+      <p class="subtitle">Type naturally to analyze your keystroke patterns</p>
+    </header>
+    <main class="content">
+      <div class="typing-area">
+        <textarea id="textArea" placeholder="Start typing here... Your keystrokes will be analyzed automatically every 5 seconds."></textarea>
+        <div class="metrics">
+          <div class="status-indicator">
+            <div class="pulse"></div>
+            <span>Analyzing keystrokes...</span>
+          </div>
+          <div id="result"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="calcBtn" class="button primary">Calculate Metrics</button>
+        <button id="resetBtn" class="button secondary">Reset</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Captcha Section (Hidden by Default) -->
+  <div id="captchaContainer">
+    <div class="captcha-container">
+      <h2>Click the Odd Dice to Prove You're Human</h2>
+      <div class="scene" id="scene">
+        <!-- 7 dice will be generated here -->
+      </div>
+      <!-- You may remove the Login button if you want the transition to be automatic -->
+      <!-- <button onclick="validateLogin()">Login</button> -->
+    </div>
+  </div>
+
+  <script>
+    // Keystroke Dynamics Analyzer Code
+    let text = "";
+    let events = [];
+    let currentKeys = {};
+
+    const textArea = document.getElementById("textArea");
+    const calcBtn = document.getElementById("calcBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const resultDiv = document.getElementById("result");
+    const captchaContainer = document.getElementById("captchaContainer");
+
+    // Update text as the user types.
+    textArea.addEventListener("input", (e) => {
+      text = e.target.value;
+    });
+
+    // Capture keydown events (record only the first press per key).
+    textArea.addEventListener("keydown", (e) => {
+      if (currentKeys[e.code] !== undefined) return;
+      events.push({
+        key: e.key,
+        code: e.code,
+        downTime: Date.now(),
+        upTime: null
+      });
+      currentKeys[e.code] = events.length - 1;
+    });
+
+    // Capture keyup events and record upTime.
+    textArea.addEventListener("keyup", (e) => {
+      const index = currentKeys[e.code];
+      if (index !== undefined) {
+        events[index].upTime = Date.now();
+        delete currentKeys[e.code];
+      }
+    });
+
+    // Calculate metrics based on keystroke events.
+    function calculateMetrics() {
+      const validEvents = events.filter(ev => ev.upTime !== null);
+      if (validEvents.length < 2) return; // Need at least two events.
+
+      // 1. Average_Dwell_Time (ms)
+      const dwellTimes = validEvents.map(ev => ev.upTime - ev.downTime);
+      const avgDwellTime = dwellTimes.reduce((sum, t) => sum + t, 0) / dwellTimes.length;
+
+      // 2. Average_Flight_Time (ms)
+      let flightTimes = [];
+      for (let i = 0; i < validEvents.length - 1; i++) {
+        flightTimes.push(validEvents[i + 1].downTime - validEvents[i].upTime);
+      }
+      const avgFlightTime = flightTimes.reduce((sum, t) => sum + t, 0) / flightTimes.length;
+
+      // 3. Flight_Time_Std_Dev
+      const meanFlight = avgFlightTime;
+      const variance = flightTimes.reduce((acc, t) => acc + Math.pow(t - meanFlight, 2), 0) / flightTimes.length;
+      const flightStdDev = Math.sqrt(variance);
+
+      // 4. Words_Per_Minute (WPM)
+      const totalTimeSec = (validEvents[validEvents.length - 1].upTime - validEvents[0].downTime) / 1000;
+      const wordCount = text.length / 5;  // Assuming 5 characters per word.
+      const wpm = totalTimeSec > 0 ? (wordCount * 60) / totalTimeSec : 0;
+
+      // 5. Human_Like_Typing_Score (H-Score)
+      const hScore = 1 / (flightStdDev + 1);
+
+      // Prepare metrics object.
+      const metrics = {
+        "Average_Dwell_Time": parseFloat(avgDwellTime.toFixed(2)),
+        "Average_Flight_Time": parseFloat(avgFlightTime.toFixed(2)),
+        "Flight_Time_Std_Dev": parseFloat(flightStdDev.toFixed(2)),
+        "Human_Like_Typing_Score": parseFloat(hScore.toFixed(4)),
+        "Words_Per_Minute": parseFloat(wpm.toFixed(2))
+      };
+
+      console.log("Calculated Metrics:", metrics);
+      sendMetrics(metrics);
+    }
+
+    // Send the metrics to the Flask API.
+    function sendMetrics(metrics) {
+      const url = window.location.origin + "/api/predict";
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metrics)
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            resultDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+            console.error("Error from server:", data.error);
+            return;
+          }
+          console.log("Server Prediction:", data);
+          // If prediction is Bot, hide the analyzer container and trigger the captcha.
+          if (data.prediction === "Bot") {
+            document.getElementById("analyzerContainer").style.display = "none";
+            captchaContainer.style.display = "block";
+          } else {
+            resultDiv.innerHTML = `<p>Prediction: ${data.prediction}<br>
+                                    Human Probability: ${data.human_probability.toFixed(2)}<br>
+                                    Bot Probability: ${data.bot_probability.toFixed(2)}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error("Error sending metrics:", error);
+          resultDiv.innerHTML = `<p>Error sending metrics: ${error.message}</p>`;
+        });
+    }
+
+    // Manual calculation button event.
+    calcBtn.addEventListener("click", calculateMetrics);
+
+    // Reset button clears text and events.
+    resetBtn.addEventListener("click", () => {
+      text = "";
+      textArea.value = "";
+      events = [];
+      resultDiv.innerHTML = "";
+    });
+
+    // Automatically calculate and send metrics every 5 seconds.
+    setInterval(() => {
+      if (text.length > 0 && events.length > 0) {
+        console.log("Auto-sending metrics...");
+        calculateMetrics();
+      }
+    }, 5000);
+
+    /* Captcha Code */
+    let captchaAttempted = false;
+    let captchaPassed = false;
+
+    // Choose one random dice dot pattern value from 1 to 6.
+    const diceValue = Math.floor(Math.random() * 6) + 1;
+    // Predefined dot patterns for values 1 to 6.
+    const dotPatterns = {
+      1: [ [50,50] ],
+      2: [ [30,30], [70,70] ],
+      3: [ [30,30], [50,50], [70,70] ],
+      4: [ [30,30], [30,70], [70,30], [70,70] ],
+      5: [ [30,30], [30,70], [50,50], [70,30], [70,70] ],
+      6: [ [30,30], [30,50], [30,70], [70,30], [70,50], [70,70] ]
+    };
+    const dotPositions = dotPatterns[diceValue];
+
+    function createDiceElement(id, isOdd) {
+      const dice = document.createElement("div");
+      dice.classList.add("dice");
+      dice.id = id;
+      if (isOdd) {
+        dice.classList.add("rotate-x");
+      } else {
+        dice.classList.add("rotate-xy");
+      }
+      const faces = ["front", "back", "left", "right", "top", "bottom"];
+      faces.forEach(face => {
+        const faceDiv = document.createElement("div");
+        faceDiv.classList.add("face", face);
+        dotPositions.forEach(pos => {
+          const dot = document.createElement("div");
+          dot.classList.add("dot");
+          dot.style.left = pos[0] + "%";
+          dot.style.top = pos[1] + "%";
+          faceDiv.appendChild(dot);
+        });
+        dice.appendChild(faceDiv);
+      });
+      // When a dice is clicked:
+      dice.addEventListener("click", function() {
+        if (captchaAttempted) {
+          alert("Captcha already attempted. Refresh to try again.");
+          return;
+        }
+        captchaAttempted = true;
+        if (isOdd) {
+          captchaPassed = true;
+          captchaSuccess();
+        } else {
+          captchaPassed = false;
+          alert("Captcha failed. That's not the odd dice!");
+        }
+      });
+      return dice;
+    }
+    // Randomly pick an index (0-6) for the odd dice among 7 dice.
+    const oddIndex = Math.floor(Math.random() * 7);
+    const scene = document.getElementById("scene");
+    for (let i = 0; i < 7; i++) {
+      let isOdd = (i === oddIndex);
+      const diceElem = createDiceElement("dice" + i, isOdd);
+      scene.appendChild(diceElem);
+    }
+
+    // When captcha is solved successfully, this function is called.
+    function captchaSuccess() {
+      alert("Captcha passed. You are human!");
+      // After a short delay, hide the captcha and show the analyzer container.
+      setTimeout(() => {
+        captchaContainer.style.display = "none";
+        document.getElementById("analyzerContainer").style.display = "block";
+        // Optionally, you can clear the keystroke events and reset the analyzer.
+        text = "";
+        textArea.value = "";
+        events = [];
+        resultDiv.innerHTML = "";
+        captchaAttempted = false;
+        captchaPassed = false;
+      }, 1000);
+    }
+
+    function validateLogin() {
+      // This function can still be used if you prefer a button-triggered validation.
+      const username = document.getElementById("username")?.value.trim();
+      const password = document.getElementById("password")?.value.trim();
+      if (!username || !password) {
+        alert("Please enter both username and password.");
+        return;
+      }
+      if (!captchaAttempted) {
+        alert("Please complete the captcha by clicking the odd dice.");
+        return;
+      }
+      if (captchaPassed) {
+        alert("Login successful. You are human!");
+      } else {
+        alert("Login failed. Captcha verification unsuccessful.");
+      }
+    }
+  </script>
+</body>
+</html>
