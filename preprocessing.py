@@ -5,6 +5,7 @@ import pandas as pd
 n = 1_000_000
 n_half = n // 2
 
+
 # Generate synthetic data for human rows
 human_df = pd.DataFrame({
     'Average_Dwell_Time': np.random.normal(loc=150, scale=30, size=n_half),
