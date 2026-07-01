@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice CAPTCHA</title>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:#1b2430;
+}
+
+.card{
+background:#fff;
+padding:30px;
+border-radius:15px;
+width:650px;
+box-shadow:0 15px 40px rgba(0,0,0,.4);
+}
+
+h2{
+text-align:center;
+margin-bottom:20px;
+}
+
+input{
+width:100%;
+padding:12px;
+margin:10px 0;
+font-size:16px;
+border-radius:8px;
+border:1px solid #ccc;
+}
+
+.scene{
+display:flex;
+justify-content:space-between;
+margin:35px 0;
+perspective:900px;
+}
+
+.dice{
+width:55px;
+height:55px;
+position:relative;
+transform-style:preserve-3d;
+cursor:pointer;
+transition:.3s;
+}
+
+.rotateX{
+animation:spinX 2s linear infinite;
+}
+
+.rotateY{
+animation:spinY 2s linear infinite;
+}
+
+.face{
+position:absolute;
+width:55px;
+height:55px;
+background:white;
+border:2px solid #111;
+border-radius:10px;
+transform-style:preserve-3d;
+}
+
+.front{transform:translateZ(27.5px);}
+.back{transform:rotateY(180deg) translateZ(27.5px);}
+.right{transform:rotateY(90deg) translateZ(27.5px);}
+.left{transform:rotateY(-90deg) translateZ(27.5px);}
+.top{transform:rotateX(90deg) translateZ(27.5px);}
+.bottom{transform:rotateX(-90deg) translateZ(27.5px);}
+
+.dot{
+position:absolute;
+width:8px;
+height:8px;
+background:#111;
+border-radius:50%;
+}
+
+.tl{top:10px;left:10px;}
+.tc{top:10px;left:23px;}
+.tr{top:10px;right:10px;}
+.ml{top:23px;left:10px;}
+.mc{top:23px;left:23px;}
+.mr{top:23px;right:10px;}
+.bl{bottom:10px;left:10px;}
+.bc{bottom:10px;left:23px;}
+.br{bottom:10px;right:10px;}
+
+button{
+width:100%;
+padding:13px;
+font-size:17px;
+background:#0059ff;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+button:hover{
+background:#003ec9;
+}
+
+#msg{
+margin-top:15px;
+text-align:center;
+font-weight:bold;
+}
+
+@keyframes spinX{
+from{transform:rotateX(0deg);}
+to{transform:rotateX(360deg);}
+}
+
+@keyframes spinY{
+from{transform:rotateY(0deg);}
+to{transform:rotateY(360deg);}
+}
+
+.correct{
+box-shadow:0 0 18px lime;
+}
+</style>
+
+</head>
+<body>
+
+<div class="card">
+
+<h2>Secure Login</h2>
+
+<input placeholder="Username">
+<input type="password" placeholder="Password">
+
+<p><b>Click the dice rotating on the Y-axis.</b></p>
+
+<div class="scene" id="scene"></div>
+
+<button onclick="login()">Login</button>
+
+<div id="msg"></div>
+
+</div>
+
+<script>
+
+const patterns={
+1:["mc"],
+2:["tl","br"],
+3:["tl","mc","br"],
+4:["tl","tr","bl","br"],
+5:["tl","tr","mc","bl","br"],
+6:["tl","ml","bl","tr","mr","br"]
+};
+
+const faceNames=["front","back","right","left","top","bottom"];
+
+function createFace(value,name){
+
+let face=document.createElement("div");
+face.className="face "+name;
+
+patterns[value].forEach(p=>{
+let d=document.createElement("div");
+d.className="dot "+p;
+face.appendChild(d);
+});
+
+return face;
+}
+
+const container=document.getElementById("scene");
+
+const correct=Math.floor(Math.random()*7);
+
+let verified=false;
+
+for(let i=0;i<7;i++){
+
+let dice=document.createElement("div");
+
+dice.className="dice "+(i===correct?"rotateY":"rotateX");
+
+for(let f=1;f<=6;f++){
+
+dice.appendChild(createFace(f,faceNames[f-1]));
+
+}
+
+dice.onclick=function(){
+
+if(i===correct){
+
+verified=true;
+dice.classList.add("correct");
+
+document.getElementById("msg").style.color="green";
+document.getElementById("msg").innerHTML="✔ CAPTCHA verified";
+
+}else{
+
+document.getElementById("msg").style.color="red";
+document.getElementById("msg").innerHTML="✖ Wrong dice. Try again.";
+
+}
+
+}
+
+container.appendChild(dice);
+
+}
+
+function login(){
+
+if(!verified){
+
+alert("Please complete the CAPTCHA.");
+return;
+
+}
+
+alert("Login Successful");
+
+}
+
+</script>
+
+</body>
+</html>
